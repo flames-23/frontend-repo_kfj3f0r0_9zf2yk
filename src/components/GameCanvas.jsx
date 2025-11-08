@@ -14,7 +14,7 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     // Game constants
     const gravity = 0.5;
     const flapStrength = -8.6;
-    const pipeGap = 130;
+    const pipeGap = 180; // widened gap for easier passage
     const pipeWidth = 64;
     const pipeSpeed = 2.35;
 
