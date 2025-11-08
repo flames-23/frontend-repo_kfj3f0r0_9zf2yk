@@ -11,12 +11,12 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     let animationId;
     let lastTime = 0;
 
-    // Game constants
-    const gravity = 0.5;
-    const flapStrength = -8.6;
-    const pipeGap = 180; // widened gap for easier passage
+    // Game tuning: slower world, gentler gravity, smaller flap jump
+    const gravity = 0.34;        // was 0.5 → slower fall
+    const flapStrength = -6.0;   // was -8.6 → shorter jump
+    const pipeGap = 180;         // easier passage kept
     const pipeWidth = 64;
-    const pipeSpeed = 2.35;
+    const pipeSpeed = 1.6;       // was 2.35 → slower scrolling
 
     // Sound effects (base64 tiny wavs)
     const flapAudio = new Audio(
@@ -187,7 +187,8 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
 
       // Remove off-screen, add new
       if (pipes.length && pipes[0].x + pipeWidth < -10) pipes.shift();
-      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 220) {
+      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 240) {
+        // slightly wider spacing since world is slower
         spawnPipe();
       }
 
