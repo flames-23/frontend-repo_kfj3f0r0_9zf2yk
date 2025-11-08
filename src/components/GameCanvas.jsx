@@ -11,12 +11,12 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     let animationId;
     let lastTime = 0;
 
-    // Game tuning: slower world, gentler gravity, smaller flap jump
-    const gravity = 0.34;        // was 0.5 → slower fall
-    const flapStrength = -6.0;   // was -8.6 → shorter jump
-    const pipeGap = 180;         // easier passage kept
+    // Game tuning: gentler gravity, slightly stronger flap, wider gaps
+    const gravity = 0.30;        // was 0.34 → longer hang time
+    const flapStrength = -6.8;   // was -6.0 → slightly longer/stronger jump
+    const pipeGap = 220;         // was 180 → more space to pass through
     const pipeWidth = 64;
-    const pipeSpeed = 1.6;       // was 2.35 → slower scrolling
+    const pipeSpeed = 1.6;       // keep calmer world speed
 
     // Sound effects (base64 tiny wavs)
     const flapAudio = new Audio(
@@ -71,8 +71,8 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     function drawBackground() {
       // Sky gradient
       const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, '#7dd3fc');
-      grad.addColorStop(1, '#60a5fa');
+      grad.addColorStop(0, '#0ea5e9');
+      grad.addColorStop(1, '#2563eb');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -81,7 +81,7 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
       bgOffset = (bgOffset + speed) % canvas.width;
 
       // Clouds
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
       for (let i = -1; i < 3; i++) {
         const x = i * 240 - bgOffset * 0.6;
         cloud(x, 60);
@@ -180,15 +180,15 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
         p.x -= pipeSpeed;
         if (!p.passed && p.x + pipeWidth < bird.x - bird.r) {
           p.passed = true;
-          score += 1;
+          score += 1;            // +1 point after passing a pillar
           onScore?.(score);
         }
       }
 
       // Remove off-screen, add new
       if (pipes.length && pipes[0].x + pipeWidth < -10) pipes.shift();
-      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 240) {
-        // slightly wider spacing since world is slower
+      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 280) {
+        // slightly wider spacing since gap is larger and world is calmer
         spawnPipe();
       }
 
