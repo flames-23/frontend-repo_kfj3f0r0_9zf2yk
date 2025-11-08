@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// A lightweight Flappy Bird-like canvas game
-export default function GameCanvas({ onGameOver, onScore }) {
+// Flappy-style canvas game with sounds and start/reset via prop
+export default function GameCanvas({ onGameOver, onScore, startSignal }) {
   const canvasRef = useRef(null);
   const [running, setRunning] = useState(false);
 
@@ -14,16 +14,25 @@ export default function GameCanvas({ onGameOver, onScore }) {
 
     // Game constants
     const gravity = 0.5;
-    const flapStrength = -8.5;
-    const pipeGap = 120;
-    const pipeWidth = 60;
-    const pipeSpeed = 2.2;
+    const flapStrength = -8.6;
+    const pipeGap = 130;
+    const pipeWidth = 64;
+    const pipeSpeed = 2.35;
+
+    // Sound effects (base64 tiny wavs)
+    const flapAudio = new Audio(
+      'data:audio/wav;base64,UklGRmSJAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSCJAAAgAAD/AACAgICQkJCQkJCQkJCUlJSUlJSUlJSUlJSUlJSUlJSUkpKSkpKSkpKSkpKSkpKSkpKSkoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA='
+    );
+    const hitAudio = new Audio(
+      'data:audio/wav;base64,UklGRmSJAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSBJAAAgAAD/AAAQEBAQEBATExMTExMTExMSEhISEhISEhISDg4ODg4ODg4ODw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw=='
+    );
 
     // World
-    const bird = { x: 80, y: 180, r: 14, vy: 0 };
+    const bird = { x: 90, y: 180, r: 14, vy: 0 };
     let pipes = [];
     let score = 0;
     let gameOver = false;
+    let bgOffset = 0;
 
     function reset() {
       pipes = [];
@@ -31,23 +40,26 @@ export default function GameCanvas({ onGameOver, onScore }) {
       gameOver = false;
       bird.y = 180;
       bird.vy = 0;
+      bgOffset = 0;
       spawnPipe();
       spawnPipe();
+      onScore?.(0);
     }
 
     function spawnPipe() {
-      const topHeight = 40 + Math.random() * 160; // 40..200
+      const topHeight = 40 + Math.random() * 180; // 40..220
       pipes.push({ x: canvas.width + 40, top: topHeight, bottom: topHeight + pipeGap, passed: false });
     }
 
     function flap() {
       if (gameOver) return;
       bird.vy = flapStrength;
+      try { flapAudio.currentTime = 0; flapAudio.play(); } catch {}
     }
 
     function collide() {
       // Ground/ceiling
-      if (bird.y + bird.r >= canvas.height - 20 || bird.y - bird.r <= 0) return true;
+      if (bird.y + bird.r >= canvas.height - 24 || bird.y - bird.r <= 0) return true;
       // Pipes
       for (const p of pipes) {
         const inX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + pipeWidth;
@@ -58,55 +70,105 @@ export default function GameCanvas({ onGameOver, onScore }) {
     }
 
     function drawBackground() {
-      // Sky
+      // Sky gradient
       const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, '#0f172a');
-      grad.addColorStop(1, '#0b1220');
+      grad.addColorStop(0, '#7dd3fc');
+      grad.addColorStop(1, '#60a5fa');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Ground
-      ctx.fillStyle = '#0a0f1a';
-      ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+      // Scrolling clouds and hills
+      const speed = pipeSpeed * 0.6;
+      bgOffset = (bgOffset + speed) % canvas.width;
+
+      // Clouds
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = -1; i < 3; i++) {
+        const x = i * 240 - bgOffset * 0.6;
+        cloud(x, 60);
+        cloud(x + 120, 90);
+      }
+
+      // Hills
+      ctx.fillStyle = '#34d399';
+      for (let i = -1; i < 3; i++) {
+        const baseX = i * 320 - bgOffset;
+        hill(baseX, canvas.height - 40, 180, 18);
+        hill(baseX + 160, canvas.height - 42, 120, 14);
+      }
+
+      // Ground strip
+      ctx.fillStyle = '#059669';
+      ctx.fillRect(0, canvas.height - 24, canvas.width, 24);
+    }
+
+    function cloud(x, y) {
+      ctx.beginPath();
+      ctx.arc(x + 20, y, 12, 0, Math.PI * 2);
+      ctx.arc(x + 36, y + 6, 14, 0, Math.PI * 2);
+      ctx.arc(x + 52, y - 2, 10, 0, Math.PI * 2);
+      ctx.arc(x + 68, y + 4, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function hill(x, y, w, h) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + w / 2, y - h, x + w, y);
+      ctx.lineTo(x + w, y + 24);
+      ctx.lineTo(x, y + 24);
+      ctx.closePath();
+      ctx.fill();
     }
 
     function drawBird() {
       ctx.save();
       ctx.translate(bird.x, bird.y);
+      ctx.rotate(Math.min(Math.max(bird.vy / 20, -0.4), 0.6));
+      // body
       ctx.beginPath();
       ctx.arc(0, 0, bird.r, 0, Math.PI * 2);
-      ctx.fillStyle = '#34d399';
+      ctx.fillStyle = '#f59e0b';
       ctx.fill();
-      // Eye
+      // wing
       ctx.beginPath();
-      ctx.arc(5, -5, 3, 0, Math.PI * 2);
+      ctx.arc(-4, 0, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#fde68a';
+      ctx.fill();
+      // eye
+      ctx.beginPath();
+      ctx.arc(6, -6, 3, 0, Math.PI * 2);
       ctx.fillStyle = '#111827';
       ctx.fill();
-      // Beak
+      // beak
       ctx.beginPath();
       ctx.moveTo(bird.r, 0);
       ctx.lineTo(bird.r + 8, 4);
       ctx.lineTo(bird.r, 6);
       ctx.closePath();
-      ctx.fillStyle = '#f59e0b';
+      ctx.fillStyle = '#ef4444';
       ctx.fill();
       ctx.restore();
     }
 
     function drawPipes() {
-      ctx.fillStyle = '#22d3ee';
+      // pipe gradient
+      const pipeGrad = ctx.createLinearGradient(0, 0, pipeWidth, 0);
+      pipeGrad.addColorStop(0, '#10b981');
+      pipeGrad.addColorStop(1, '#22d3ee');
+      ctx.fillStyle = pipeGrad;
       for (const p of pipes) {
         // Top pipe
         ctx.fillRect(p.x, 0, pipeWidth, p.top);
         // Bottom pipe
-        ctx.fillRect(p.x, p.bottom, pipeWidth, canvas.height - p.bottom - 20);
+        ctx.fillRect(p.x, p.bottom, pipeWidth, canvas.height - p.bottom - 24);
       }
     }
 
     function drawScore() {
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 20px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(`Score: ${score}`, 16, 28);
+      ctx.font = 'bold 22px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(`Score: ${score}`, 16, 30);
     }
 
     function update(dt) {
@@ -126,12 +188,13 @@ export default function GameCanvas({ onGameOver, onScore }) {
 
       // Remove off-screen, add new
       if (pipes.length && pipes[0].x + pipeWidth < -10) pipes.shift();
-      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 200) {
+      if (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 220) {
         spawnPipe();
       }
 
       // Collision
       if (collide()) {
+        try { hitAudio.currentTime = 0; hitAudio.play(); } catch {}
         gameOver = true;
       }
     }
@@ -146,13 +209,6 @@ export default function GameCanvas({ onGameOver, onScore }) {
       drawScore();
 
       if (gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 22px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-        const message = 'Tota Uda nhi paaya tu Zindagi me ky karega';
-        const metrics = ctx.measureText(message);
-        ctx.fillText(message, (canvas.width - metrics.width) / 2, canvas.height / 2);
         cancelAnimationFrame(animationId);
         onGameOver?.(score);
         setRunning(false);
@@ -196,7 +252,7 @@ export default function GameCanvas({ onGameOver, onScore }) {
     window.addEventListener('keydown', handleKey);
     canvas.addEventListener('pointerdown', handleClick);
 
-    // Start on first click/space, show idle state first
+    // Idle draw first
     drawBackground();
     drawPipes();
     drawBird();
@@ -208,11 +264,9 @@ export default function GameCanvas({ onGameOver, onScore }) {
       canvas.removeEventListener('pointerdown', handleClick);
       cancelAnimationFrame(animationId);
     };
-  }, [onGameOver, onScore, running]);
+  }, [onGameOver, onScore, startSignal, running]);
 
   return (
-    <div className="w-full aspect-[3/2] rounded-2xl overflow-hidden border border-white/10 bg-[#0b1220]">
-      <canvas ref={canvasRef} className="w-full h-full" />
-    </div>
+    <canvas ref={canvasRef} className="w-full h-full" />
   );
 }
