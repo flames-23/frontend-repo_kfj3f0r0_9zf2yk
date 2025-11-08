@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 // Flappy-style canvas game with sounds and start/reset via prop
 export default function GameCanvas({ onGameOver, onScore, startSignal }) {
   const canvasRef = useRef(null);
-  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -171,7 +170,7 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
       ctx.fillText(`Score: ${score}`, 16, 30);
     }
 
-    function update(dt) {
+    function update() {
       // Bird physics
       bird.vy += gravity;
       bird.y += bird.vy;
@@ -200,10 +199,10 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     }
 
     function loop(ts) {
-      const dt = ts - lastTime;
+      const dt = ts - lastTime; // dt not currently used but kept for potential effects
       lastTime = ts;
       drawBackground();
-      if (!gameOver) update(dt);
+      if (!gameOver) update();
       drawPipes();
       drawBird();
       drawScore();
@@ -211,7 +210,6 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
       if (gameOver) {
         cancelAnimationFrame(animationId);
         onGameOver?.(score);
-        setRunning(false);
         return;
       }
 
@@ -220,7 +218,6 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
 
     function start() {
       reset();
-      setRunning(true);
       lastTime = 0;
       animationId = requestAnimationFrame(loop);
     }
@@ -238,25 +235,20 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
     const handleKey = (e) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        if (!running) start();
-        else flap();
+        flap();
       }
     };
 
     const handleClick = () => {
-      if (!running) start();
-      else flap();
+      flap();
     };
 
     window.addEventListener('resize', resize);
     window.addEventListener('keydown', handleKey);
     canvas.addEventListener('pointerdown', handleClick);
 
-    // Idle draw first
-    drawBackground();
-    drawPipes();
-    drawBird();
-    drawScore();
+    // Auto-start when the canvas mounts (i.e., after pressing Play) or when startSignal changes
+    start();
 
     return () => {
       window.removeEventListener('resize', resize);
@@ -264,7 +256,7 @@ export default function GameCanvas({ onGameOver, onScore, startSignal }) {
       canvas.removeEventListener('pointerdown', handleClick);
       cancelAnimationFrame(animationId);
     };
-  }, [onGameOver, onScore, startSignal, running]);
+  }, [onGameOver, onScore, startSignal]);
 
   return (
     <canvas ref={canvasRef} className="w-full h-full" />
